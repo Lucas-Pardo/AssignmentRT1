@@ -122,7 +122,7 @@ dt = 0.4
 speed = 15
 grab_index = 0
 
-# Main function:
+# Main Code:
 t = 0
 grab_state = False
 markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]

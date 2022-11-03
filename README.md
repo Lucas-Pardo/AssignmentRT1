@@ -90,7 +90,7 @@ Assignment
 
 The task is to pair every silver token to a gold token, i.e. grab a silver token and release it near a gold token such that every gold token has exactly one silver token nearby.
 
-### Pseudocode ###
+## Pseudocode
 
 A general pseudocode for this task could be the following:
 
@@ -112,11 +112,11 @@ Do until every token is paired:
 
 ```
 
-### Python code ###
+## Python code 
 
 This section gives a brief explanation about the different parts of the python code used. 
 
-## Parameters
+### Parameters ###
 
 We start with the different parameters used and defined in the begining of the file:
 
@@ -135,7 +135,7 @@ in_time = 15.0
 ```
 As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. The `in_time` parameter is used to finish the program (it is explained later).
 
-## Functions
+### Functions ###
 
 The first two functions defined and used are `drive` and `turn`. As their name imply, these are used to move the robot forward or turn the robot with a certain speed. In both cases, this is done by modifying the power of the motors for some time.
 
@@ -223,7 +223,7 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
             return cd
 ```
 
-The last function used is called `search_and_release`. It takes the exact same parameters as the previous function `search_and_grab` and works eexactly the same except that it uses `pd_th` instead of `d_th` and once the robot arrives at the given position it uses the method `R.release` to release the token that it is carrying. It returns the code of the token where the released happened or -1 if no appropriate token was found.
+The last function used is called `search_and_release`. It takes the exact same parameters as the previous function `search_and_grab` and works exactly the same except that it uses `pd_th` instead of `d_th` and once the robot arrives at the given position it uses the method `R.release` to release the token that it is carrying. It returns the code of the token where the release happened (gold token) or -1 if no appropriate token was found.
 
 ```python
 def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD):
@@ -249,28 +249,27 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
             return cd
 ```
 
-## Main code
+### Main code ###
 
-The first part of the code is a set of 3 modifiable parameters: the time step used `dt` (lower values would give a smoother movement), a `speed` variable to turn the robot while looking for a suitable marker and something called the `grab_index` which is the token type that we want to grab, this is in reference to the `markers` list so 0 would be a silver token and 1 a gold token.
+The first part of the code is a set of 3 modifiable parameters: the time step used `dt` (lower values would give a smoother movement), a `speed` variable to turn the robot while looking for a suitable marker and something called the `grab_index` which is the token type that we want to grab, this is in reference to the `markers` list, so 0 would be a silver token and 1 a gold token.
 
 ```python
 # Modifiable parameters:
 dt = 0.4
-speed = 10
+speed = 15
 grab_index = 0
 ```
 
 The main code is just a direct application of the pseudocode in python. It prints "Finished" after every token is paired.
 
 ```python
-# Main function:
+# Main Code:
 t = 0
 grab_state = False
 markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
 release_index = (grab_index + 1) % 2
 arranged = [[], []]
 while t < in_time:
-    print("working")
     if not grab_state:
         cd = search_and_grab(arranged, dt, markers[grab_index])
         if cd == -1:
@@ -293,7 +292,18 @@ while t < in_time:
 print("Finished.")
 ```
 
-There are however some details that are not specified in the pseudocode. The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. Finally, the way we detect the end of the process is just by an inactivity time, the parameter defined in the begining `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished.
+There are however some details that are not specified in the pseudocode. The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. Finally, the way we detect the end of the process is just by an inactivity time, the parameter defined in the begining `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished (no more tokens to pair). This parameter is chosen so that the robot has enough time to at least make a whole turn given the current `speed` value, lower the `speed` higher the `in_time`.
 
-### Improvements ###
+## Improvements
 
+### Better pathing ###
+
+The code works pretty well for the given arena and configuration of tokens. However, if we perform the opposite operation for instance, pair gold tokens to silver tokens, we find that the process becomes sluggish and even impossible. This is because the robot does not consider other tokens blocking its path to the desired token. This means that most of the times the robot drags around some tokens for some time and even forever, preventing it from reaching the desired token within the given threshold. To solve this problem and obtain a more general algorithm for this task, we need to implement some function to detect tokens in its path and some kind of movement algorithm to avoid it.
+
+### Better movement control ###
+
+Right now the functions `search_and_grab` and `search_and_release` use a very simple form of variable speed to approach the token. This works quite well for small values of `dt`, however, for large values the pathing becomes quite rough. Given that larger values of `dt` would improve the performance, it could be useful to implement a more complex movement controller (in discrete time) if performance becomes a problem.
+
+### Cleaner code ###
+
+There are some improvements that can be made in the code. For instance, we could easily merge `search_and_grab` and `search_and_release` into a single function using the `grab_state` variable. This would also reduce and simplify a little the main block of code. We have decided not to do it in favour of readability of the main code and to maintain some semblance of the pseudocode.
