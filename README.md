@@ -114,7 +114,11 @@ Do until every token is paired:
 
 ## Python code 
 
-This section gives a brief explanation about the different parts of the python code used: `assignment.py`. 
+This section gives a brief explanation about the different parts of the python code used: `assignment.py`. To run the program write in the terminal:
+
+```bash
+$ python2 run.py assignment.py
+```
 
 ### Parameters ###
 
