@@ -86,7 +86,7 @@ for m in markers:
 
 
 Assignment
-----------
+==========
 
 The task is to pair every silver token to a gold token, i.e. grab a silver token and release it near a gold token such that every gold token has exactly one silver token nearby.
 
@@ -114,7 +114,7 @@ Do until every token is paired:
 
 ## Python code 
 
-This section gives a brief explanation about the different parts of the python code used. 
+This section gives a brief explanation about the different parts of the python code used: `assignment.py`. 
 
 ### Parameters ###
 
