@@ -132,44 +132,48 @@ d_th = 0.4
 """ float: Threshold for the control of the linear distance"""
 
 pd_th = 0.6
-""" float: Distance at which we leave a token to pair to another"""
+""" float: Threshold for the control of the release distance"""
 
-in_time = 15.0
-""" float: Time in seconds of inactivity to consider all tokens paired"""
+dt = 0.02
+""" float: Time step used in all motion functions"""
+
+grab_index = 0
+""" int (0, 1): Type of token to grab. 0 for silver, 1 for gold"""
 ```
-As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. The `in_time` parameter is used to finish the program (it is explained later).
+As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. The `dt` parameter is the time step used between motion commands. Finally, the `grab_index` parameter is the token that we want to seek and pair to the opposite token type. It can take values 0 for silver token and 1 for gold token.
 
 ### Functions ###
 
-The first two functions defined and used are `drive` and `turn`. As their name imply, these are used to move the robot forward or turn the robot with a certain speed. In both cases, this is done by modifying the power of the motors for some time.
+The first three functions defined and used are `stop`, `drive` and `turn`. As their name imply, these are used to stop the robot, move the robot forward or turn the robot with a certain speed. In both cases, this is done by modifying the power of the motors. There is an important difference with respect to the usual `drive` and `turn` functions and that is that the `turn` function does not set the speed it just adds speed to the motors. This way we can obtain a smoother path to the tokens.
 
 ```python
-def drive(speed, seconds):
+
+def stop():
+    """
+    Function to stop the motion of the robot
+    """
+    R.motors[0].m0.power = 0
+    R.motors[0].m1.power = 0
+
+
+def drive(speed):
     """
     Function for setting a linear velocity
     
     Args: speed (int): the speed of the wheels
-	  seconds (int): the time interval
     """
     R.motors[0].m0.power = speed
     R.motors[0].m1.power = speed
-    time.sleep(seconds)
-    R.motors[0].m0.power = 0
-    R.motors[0].m1.power = 0
 
 
-def turn(speed, seconds):
+def turn(speed):
     """
     Function for setting an angular velocity
     
     Args: speed (int): the speed of the wheels
-	  seconds (int): the time interval
     """
-    R.motors[0].m0.power = speed
-    R.motors[0].m1.power = -speed
-    time.sleep(seconds)
-    R.motors[0].m0.power = 0
-    R.motors[0].m1.power = 0
+    R.motors[0].m0.power += speed
+    R.motors[0].m1.power -= speed
 ```
 
 The next function and most important one is called `find_free_token`. It takes as parameters a `marker_type` (silver or gold) and the exclusion list of markers. This function uses the `R.see` method to obtain the list of markers and then it looks through it to return the distance, angle and code of the nearest token of type `marker_type` that is not in `exc_list`.
@@ -201,7 +205,7 @@ def find_free_token(marker_type=None, exc_list=[[], []]):
    	    return dist, rot_y, cd
 ```
 
-The function `search_and_grab` is used to go to the nearest token and grab it. It takes as parameters the exclusion list of tokens `exc_list`, a time step variable `dt` to control the usage of the functions `drive` and `turn` and the token type to grab `marker_type` (silver or gold). This function uses the previous function `find_free_token` to obtain the distance and angle of the nearest appropriate token and makes the robot go to its position using the functions `drive` and `turn`. Once the robot reaches the position within some thresholds given by `a_th` and `d_th`, it uses the method `R.grab` to grab the token. This function returns -1 if no appropriate token was found otherwise it returns the code returned by the function `find_free_token`.
+The function `search_and_grab` is used to go to the nearest token and grab it. It takes as parameters the exclusion list of tokens `exc_list`, a time step variable `dt` to control the usage of the functions `drive` and `turn` and the token type to grab `marker_type` (silver or gold). This function uses the previous function `find_free_token` to obtain the distance and angle of the nearest appropriate token and makes the robot go to its position using the functions `drive` and `turn`. The speed and angular speed used is calculated calculated using the relative distances (`d`, `ang`) and the time step `dt` to obtain a good trajectory regardless of the time step used. Once the robot reaches the position within some thresholds given by `a_th` and `d_th`, it uses the method `R.grab` to grab the token. This function returns -1 if no appropriate token was found otherwise it returns the code returned by the function `find_free_token`.
 
 ```python
 def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
@@ -216,13 +220,15 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * 20
-        ang_speed = ang / 2
+        speed = d * (1 + round(24 / sqrt(dt), 1))
+        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
         if d > d_th:
-            drive(speed, dt)
+            drive(speed)
         if abs(ang) > a_th:
-            turn(ang_speed, dt)
+            turn(ang_speed)
+        time.sleep(dt)
         if (d <= d_th) and (abs(ang) <= a_th):
+            stop()
             R.grab()
             return cd
 ```
@@ -242,61 +248,69 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * 20
-        ang_speed = ang / 2
+        speed = d * (1 + round(24 / sqrt(dt), 1))
+        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
         if d > pd_th:
-            drive(speed, dt)
+            drive(speed)
         if abs(ang) > a_th:
-            turn(ang_speed, dt)
+            turn(ang_speed)
+        time.sleep(dt)
         if (d <= pd_th) and (abs(ang) <= a_th):
+            stop()
             R.release()
             return cd
 ```
 
 ### Main code ###
 
-The first part of the code is a set of 3 modifiable parameters: the time step used `dt` (lower values would give a smoother movement), a `speed` variable to turn the robot while looking for a suitable marker and something called the `grab_index` which is the token type that we want to grab, this is in reference to the `markers` list, so 0 would be a silver token and 1 a gold token.
+The main code is defined as the function `main` which is direct application of the pseudocode in python using the functions defined.
 
 ```python
-# Modifiable parameters:
-dt = 0.4
-speed = 15
-grab_index = 0
+def main():
+    t = 0
+    in_time = round(14 * sqrt(dt), 1)
+    speed = 1 + round(20 / sqrt(dt), 1)
+    grab_state = False
+    markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
+    release_index = (grab_index + 1) % 2
+    arranged = [[], []]
+    while t < in_time:
+        if not grab_state:
+            cd = search_and_grab(arranged, dt, markers[grab_index])
+            if cd == -1:
+                turn(speed)
+                time.sleep(dt)
+                t += dt
+            else:
+                grab_state = True
+                arranged[grab_index].append(cd)
+                t = 0
+        else:
+            cd = search_and_release(arranged, dt, markers[release_index])
+            if cd == -1:
+                turn(speed)
+                time.sleep(dt)
+            else:
+                drive(-speed)
+                time.sleep(speed * dt / 6)
+                grab_state = False
+                arranged[release_index].append(cd)
+    stop()
+    return in_time
 ```
 
-The main code is just a direct application of the pseudocode in python. It prints "Finished" after every token is paired.
+There are however some details that are not specified in the pseudocode. The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. Finally, the way we detect the end of the process is just by an inactivity time, the variable computed in the begining, `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished (no more tokens to pair). This parameter is computed using the time step `dt` such that there is enough time to perform at least a whole turn given the speed used (also computed using `dt`).
 
 ```python
 # Main Code:
-t = 0
-grab_state = False
-markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
-release_index = (grab_index + 1) % 2
-arranged = [[], []]
-while t < in_time:
-    if not grab_state:
-        cd = search_and_grab(arranged, dt, markers[grab_index])
-        if cd == -1:
-            turn(speed, dt)
-            t += dt
-        else:
-            grab_state = True
-            arranged[grab_index].append(cd)
-            t = 0
-    else:
-        cd = search_and_release(arranged, dt, markers[release_index])
-        if cd == -1:
-            turn(speed, dt)
-        else:
-            drive(-speed * 5, dt*2)
-            turn(speed, dt*2)
-            grab_state = False
-            arranged[release_index].append(cd)
-            
-print("Finished.")
+start_time = default_timer()            #Start timer
+in_time = main()                        #Run main function
+ex_time = default_timer() - start_time  #End timer  
+print("Finished in {:.3f} seconds with {:.1f} seconds of inactivity.".format(ex_time, in_time))
 ```
 
-There are however some details that are not specified in the pseudocode. The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. Finally, the way we detect the end of the process is just by an inactivity time, the parameter defined in the begining `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished (no more tokens to pair). This parameter is chosen so that the robot has enough time to at least make a whole turn given the current `speed` value, lower the `speed` higher the `in_time`.
+The actual main block of code executed is just a call to the `main` function surrounded by some calls to the `timeit.default_timer` function to time the process and a print with the time taken and how much time of inactivity.
+
 
 ## Improvements
 
@@ -310,4 +324,4 @@ Right now the functions `search_and_grab` and `search_and_release` use a very si
 
 ### Cleaner code ###
 
-There are some improvements that can be made in the code. For instance, we could easily merge `search_and_grab` and `search_and_release` into a single function using the `grab_state` variable. This would also reduce and simplify a little the main block of code. We have decided not to do it in favour of readability of the main code and to maintain some semblance of the pseudocode.
+There are some improvements that can be made in the code. For instance, we could easily merge `search_and_grab` and `search_and_release` into a single function using the `grab_state` variable. This would also reduce and simplify a little the main function. We have decided not to do it in favour of readability of the main code and to maintain some semblance of the pseudocode.

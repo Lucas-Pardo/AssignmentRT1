@@ -24,32 +24,32 @@ grab_index = 0
 R = Robot()
 """ instance of the class Robot"""
 
-def drive(speed, seconds):
+def stop():
+    """
+    Function to stop the motion of the robot
+    """
+    R.motors[0].m0.power = 0
+    R.motors[0].m1.power = 0
+
+
+def drive(speed):
     """
     Function for setting a linear velocity
     
     Args: speed (int): the speed of the wheels
-	  seconds (int): the time interval
     """
     R.motors[0].m0.power = speed
     R.motors[0].m1.power = speed
-    time.sleep(seconds)
-    R.motors[0].m0.power = 0
-    R.motors[0].m1.power = 0
 
 
-def turn(speed, seconds):
+def turn(speed):
     """
     Function for setting an angular velocity
     
     Args: speed (int): the speed of the wheels
-	  seconds (int): the time interval
     """
-    R.motors[0].m0.power = speed
-    R.motors[0].m1.power = -speed
-    time.sleep(seconds)
-    R.motors[0].m0.power = 0
-    R.motors[0].m1.power = 0
+    R.motors[0].m0.power += speed
+    R.motors[0].m1.power -= speed
 
 
 def find_free_token(marker_type=None, exc_list=[[], []]):
@@ -90,13 +90,15 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(16 / dt))
-        ang_speed = min(ang / 4 / dt, 3 * ang)
+        speed = d * (1 + round(24 / sqrt(dt), 1))
+        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
         if d > d_th:
-            drive(speed, dt)
+            drive(speed)
         if abs(ang) > a_th:
-            turn(ang_speed, dt)
+            turn(ang_speed)
+        time.sleep(dt)
         if (d <= d_th) and (abs(ang) <= a_th):
+            stop()
             R.grab()
             return cd
         
@@ -113,53 +115,56 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(16 / dt))
-        ang_speed = min(ang / 4 / dt, 3 * ang)
+        speed = d * (1 + round(24 / sqrt(dt), 1))
+        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
         if d > pd_th:
-            drive(speed, dt)
+            drive(speed)
         if abs(ang) > a_th:
-            turn(ang_speed, dt)
+            turn(ang_speed)
+        time.sleep(dt)
         if (d <= pd_th) and (abs(ang) <= a_th):
+            stop()
             R.release()
             return cd
         
         
-# def main():
-#     t = 0
-#     in_time = 14 * sqrt(dt)
-#     speed = 1 + round(17 / sqrt(dt))
-#     grab_state = False
-#     markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
-#     release_index = (grab_index + 1) % 2
-#     arranged = [[], []]
-#     rot = 1
-#     while t < in_time:
-#         if not grab_state:
-#             cd = search_and_grab(arranged, dt, markers[grab_index])
-#             if cd == -1:
-#                 turn(rot * speed, dt)
-#                 t += dt
-#             else:
-#                 grab_state = True
-#                 arranged[grab_index].append(cd)
-#                 t = 0
-#                 rot *= -1
-#         else:
-#             cd = search_and_release(arranged, dt, markers[release_index])
-#             if cd == -1:
-#                 turn(rot * speed, dt)
-#             else:
-#                 drive(-speed, speed * dt / 6)
-#                 grab_state = False
-#                 arranged[release_index].append(cd)
-#     return in_time
+def main():
+    t = 0
+    in_time = round(14 * sqrt(dt), 1)
+    speed = 1 + round(20 / sqrt(dt), 1)
+    grab_state = False
+    markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
+    release_index = (grab_index + 1) % 2
+    arranged = [[], []]
+    while t < in_time:
+        if not grab_state:
+            cd = search_and_grab(arranged, dt, markers[grab_index])
+            if cd == -1:
+                turn(speed)
+                time.sleep(dt)
+                t += dt
+            else:
+                grab_state = True
+                arranged[grab_index].append(cd)
+                t = 0
+        else:
+            cd = search_and_release(arranged, dt, markers[release_index])
+            if cd == -1:
+                turn(speed)
+                time.sleep(dt)
+            else:
+                drive(-speed)
+                time.sleep(speed * dt / 6)
+                grab_state = False
+                arranged[release_index].append(cd)
+    stop()
+    return in_time
+
 
 # Main Code:
-if __name__ == "__main__":                  #Check if the file is run as a script.
-    #execfile("run.py")                      #Execute run.py
-    start_time = default_timer()            #Start timer
-    # in_time = main()                        #Run main function
-    ex_time = default_timer() - start_time  #End timer  
-    print("Finished in {:.3f} seconds with {:.1f} seconds of inactivity.".format(ex_time, in_time))
+start_time = default_timer()            #Start timer
+in_time = main()                        #Run main function
+ex_time = default_timer() - start_time  #End timer  
+print("Finished in {:.3f} seconds with {:.1f} seconds of inactivity.".format(ex_time, in_time))
     
     
