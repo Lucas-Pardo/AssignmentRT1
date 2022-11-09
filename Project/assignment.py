@@ -5,6 +5,7 @@ from math import sqrt
 from sr.robot import *
 
 
+
 a_th = 2.0
 """ float: Threshold for the control of the orientation"""
 
@@ -123,41 +124,41 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
             return cd
         
         
-def main():
-    t = 0
-    in_time = 14 * sqrt(dt)
-    speed = 1 + round(17 / sqrt(dt))
-    grab_state = False
-    markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
-    release_index = (grab_index + 1) % 2
-    arranged = [[], []]
-    rot = 1
-    while t < in_time:
-        if not grab_state:
-            cd = search_and_grab(arranged, dt, markers[grab_index])
-            if cd == -1:
-                turn(rot * speed, dt)
-                t += dt
-            else:
-                grab_state = True
-                arranged[grab_index].append(cd)
-                t = 0
-                rot *= -1
-        else:
-            cd = search_and_release(arranged, dt, markers[release_index])
-            if cd == -1:
-                turn(rot * speed, dt)
-            else:
-                drive(-speed, speed * dt / 6)
-                grab_state = False
-                arranged[release_index].append(cd)
-    return in_time
+# def main():
+#     t = 0
+#     in_time = 14 * sqrt(dt)
+#     speed = 1 + round(17 / sqrt(dt))
+#     grab_state = False
+#     markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
+#     release_index = (grab_index + 1) % 2
+#     arranged = [[], []]
+#     rot = 1
+#     while t < in_time:
+#         if not grab_state:
+#             cd = search_and_grab(arranged, dt, markers[grab_index])
+#             if cd == -1:
+#                 turn(rot * speed, dt)
+#                 t += dt
+#             else:
+#                 grab_state = True
+#                 arranged[grab_index].append(cd)
+#                 t = 0
+#                 rot *= -1
+#         else:
+#             cd = search_and_release(arranged, dt, markers[release_index])
+#             if cd == -1:
+#                 turn(rot * speed, dt)
+#             else:
+#                 drive(-speed, speed * dt / 6)
+#                 grab_state = False
+#                 arranged[release_index].append(cd)
+#     return in_time
 
 # Main Code:
 if __name__ == "__main__":                  #Check if the file is run as a script.
     #execfile("run.py")                      #Execute run.py
     start_time = default_timer()            #Start timer
-    in_time = main()                        #Run main function
+    # in_time = main()                        #Run main function
     ex_time = default_timer() - start_time  #End timer  
     print("Finished in {:.3f} seconds with {:.1f} seconds of inactivity.".format(ex_time, in_time))
     
