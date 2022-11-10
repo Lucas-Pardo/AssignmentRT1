@@ -140,7 +140,7 @@ dt = 0.05
 grab_index = 0
 """ int (0, 1): Type of token to grab. 0 for silver, 1 for gold"""
 
-rot = 1
+rot = -1
 """ int (1, -1): Direction of rotation. 1 for clockwise, -1 for anticlockwise."""
 
 alternatingRot = (True, False)
@@ -233,7 +233,7 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqdt, 1))
+        speed = d * (1 + 24 / sqdt)
         ang_speed = ang * (0.3 + 0.05 / dt)
         if d > d_th:
             drive(speed)
@@ -261,7 +261,7 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqdt, 1))
+        speed = d * (1 + 24 / sqdt)
         ang_speed = ang * (0.3 + 0.05 / dt)
         if d > pd_th:
             drive(speed)
