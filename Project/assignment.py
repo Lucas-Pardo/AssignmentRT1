@@ -15,14 +15,22 @@ d_th = 0.4
 pd_th = 0.6
 """ float: Threshold for the control of the release distance"""
 
-dt = 0.02
+dt = 0.05
 """ float: Time step used in all motion functions"""
 
 grab_index = 0
 """ int (0, 1): Type of token to grab. 0 for silver, 1 for gold"""
 
+rot = 1
+""" int (1, -1): Direction of rotation. 1 for clockwise, -1 for anticlockwise."""
+
+AlternatingRot = (True, False)
+""" boolean tuple: Whether to alternate rotation direction after (grabbing, releasing) or not."""
+
 R = Robot()
 """ instance of the class Robot"""
+
+sqdt = sqrt(dt)
 
 def stop():
     """
@@ -90,8 +98,8 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqrt(dt), 1))
-        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
+        speed = d * (1 + round(24 / sqdt, 1))
+        ang_speed = ang * (0.3 + 0.05 / dt)
         if d > d_th:
             drive(speed)
         if abs(ang) > a_th:
@@ -115,8 +123,8 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqrt(dt), 1))
-        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
+        speed = d * (1 + round(24 / sqdt, 1))
+        ang_speed = ang * (0.3 + 0.05 / dt)
         if d > pd_th:
             drive(speed)
         if abs(ang) > a_th:
@@ -129,9 +137,10 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         
         
 def main():
+    global rot
     t = 0
-    in_time = round(14 * sqrt(dt), 1)
-    speed = 1 + round(20 / sqrt(dt), 1)
+    in_time = round(0.5 + 8 * sqdt, 1)
+    speed = 1 + round(9 / dt, 1)
     grab_state = False
     markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
     release_index = (grab_index + 1) % 2
@@ -140,23 +149,27 @@ def main():
         if not grab_state:
             cd = search_and_grab(arranged, dt, markers[grab_index])
             if cd == -1:
-                turn(speed)
+                turn(rot*speed)
                 time.sleep(dt)
+                turn(-0.95*rot*speed)
                 t += dt
             else:
                 grab_state = True
                 arranged[grab_index].append(cd)
                 t = 0
+                rot = -rot if AlternatingRot[0] else rot
         else:
             cd = search_and_release(arranged, dt, markers[release_index])
             if cd == -1:
-                turn(speed)
+                turn(rot*speed)
                 time.sleep(dt)
+                turn(-0.95*rot*speed)
             else:
                 drive(-speed)
-                time.sleep(speed * dt / 6)
+                time.sleep(3 * sqdt)
                 grab_state = False
                 arranged[release_index].append(cd)
+                rot = -rot if AlternatingRot[1] else rot
     stop()
     return in_time
 

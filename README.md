@@ -134,13 +134,24 @@ d_th = 0.4
 pd_th = 0.6
 """ float: Threshold for the control of the release distance"""
 
-dt = 0.02
+dt = 0.05
 """ float: Time step used in all motion functions"""
 
 grab_index = 0
 """ int (0, 1): Type of token to grab. 0 for silver, 1 for gold"""
+
+rot = 1
+""" int (1, -1): Direction of rotation. 1 for clockwise, -1 for anticlockwise."""
+
+AlternatingRot = (True, False)
+""" boolean tuple: Whether to alternate rotation direction after (grabbing, releasing) or not."""
 ```
-As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. The `dt` parameter is the time step used between motion commands. Finally, the `grab_index` parameter is the token that we want to seek and pair to the opposite token type. It can take values 0 for silver token and 1 for gold token.
+* As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. 
+* The `dt` parameter is the time step used between motion commands. 
+* The `grab_index` parameter is the token that we want to seek and pair to the opposite token type. It can take the value 0 for silver tokens and 1 for gold tokens. 
+* The `rot` parameter is the direction of rotation of the robot while it searches for a suitable token. It can take the value 1 for a clockwise rotation and -1 for an anticlockwise rotation. 
+
+Finally, we have decided to include an interesting parameter called `AlternatingRot`, which is a boolean tuple (`boolean`, `boolean`). It indicates whether to alternate the rotation direction after performing the corresponding action (`grab`, `release`), e.g. `(False, True)` means that the rotation will be alternated after every release but not after grabbing. This parameter is interesting because it can actually improve the performance (time taken) of the robot without decreasing the time step `dt`. After some testing the configurations `(True, True)` and `(True, False)` seem to work best for the current arena configuration.
 
 ### Functions ###
 
@@ -207,6 +218,8 @@ def find_free_token(marker_type=None, exc_list=[[], []]):
 
 The function `search_and_grab` is used to go to the nearest token and grab it. It takes as parameters the exclusion list of tokens `exc_list`, a time step variable `dt` to control the usage of the functions `drive` and `turn` and the token type to grab `marker_type` (silver or gold). This function uses the previous function `find_free_token` to obtain the distance and angle of the nearest appropriate token and makes the robot go to its position using the functions `drive` and `turn`. The speed and angular speed used is calculated using the relative distances (`d`, `ang`) and the time step `dt` to obtain a good trajectory regardless of the time step used. Once the robot reaches the position within some thresholds given by `a_th` and `d_th`, it uses the method `R.grab` to grab the token. This function returns -1 if no appropriate token was found otherwise it returns the code returned by the function `find_free_token`.
 
+* Note: sqdt = sqrt(dt), it is defined as a paramater because it is used in multiple places inside loops.
+
 ```python
 def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
     
@@ -220,8 +233,8 @@ def search_and_grab(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_SILVER):
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqrt(dt), 1))
-        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
+        speed = d * (1 + round(24 / sqdt, 1))
+        ang_speed = ang * (0.3 + 0.05 / dt)
         if d > d_th:
             drive(speed)
         if abs(ang) > a_th:
@@ -248,8 +261,8 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
         d, ang, cd = find_free_token(marker_type, exc_list)
         if d < 0:
             return -1
-        speed = d * (1 + round(24 / sqrt(dt), 1))
-        ang_speed = ang * (0.5 + 0.2 / sqrt(dt))
+        speed = d * (1 + round(24 / sqdt, 1))
+        ang_speed = ang * (0.3 + 0.05 / dt)
         if d > pd_th:
             drive(speed)
         if abs(ang) > a_th:
@@ -263,13 +276,16 @@ def search_and_release(exc_list=[[], []], dt=0.4, marker_type=MARKER_TOKEN_GOLD)
 
 ### Main code ###
 
-The main code is defined as the function `main` which is direct application of the pseudocode in python using the functions defined.
+The main code is defined as the function `main` which is a direct application of the pseudocode in python using the functions defined.
+
+* Note: The `rot` paramater is the only one that must be declared global since it "becomes" a variable (we assign values to it) if any element of `AlternatingRot` is `True`. 
 
 ```python
 def main():
+    global rot
     t = 0
-    in_time = round(14 * sqrt(dt), 1)
-    speed = 1 + round(20 / sqrt(dt), 1)
+    in_time = round(0.5 + 8 * sqdt, 1)
+    speed = 1 + round(9 / dt, 1)
     grab_state = False
     markers = [MARKER_TOKEN_SILVER, MARKER_TOKEN_GOLD]
     release_index = (grab_index + 1) % 2
@@ -278,28 +294,38 @@ def main():
         if not grab_state:
             cd = search_and_grab(arranged, dt, markers[grab_index])
             if cd == -1:
-                turn(speed)
+                turn(rot*speed)
                 time.sleep(dt)
+                turn(-0.95*rot*speed)
                 t += dt
             else:
                 grab_state = True
                 arranged[grab_index].append(cd)
                 t = 0
+                rot = -rot if AlternatingRot[0] else rot
         else:
             cd = search_and_release(arranged, dt, markers[release_index])
             if cd == -1:
-                turn(speed)
+                turn(rot*speed)
                 time.sleep(dt)
+                turn(-0.95*rot*speed)
             else:
                 drive(-speed)
-                time.sleep(speed * dt / 6)
+                time.sleep(3 * sqdt)
                 grab_state = False
                 arranged[release_index].append(cd)
+                rot = -rot if AlternatingRot[1] else rot
     stop()
     return in_time
 ```
 
-There are however some details that are not specified in the pseudocode. The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. Finally, the way we detect the end of the process is just by an inactivity time, the variable computed in the begining, `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished (no more tokens to pair). This parameter is computed using the time step `dt` such that there is enough time to perform at least a whole turn given the speed used (also computed using `dt`).
+There are however some details that are not specified in the pseudocode:
+
+* The first one is the exclusion list, in this case called `arranged`. Because tokens of different type can have the same code, we need a separate exclusion list for silver tokens and gold tokens. We do this using a 2 row matrix so that `arranged[0]` is the exclusion list for silver tokens and `arranged[1]` the one for gold tokens. 
+
+* The second detail is that functions `search_and_grab` and `search_and_release` just search for tokens directly in front of the robot (in its field of vision), so when they return -1 we need to turn the robot and try again. We do this by calling the `turn` function, but since this function adds speed, the speed would keep increasing without any control. After calling `time.sleep` we would need to call the function `stop` or, as we have done, turn the opposite direction. As we can see, we have decided not to stop it completely and just reduce the speed by 95%. This means that there is still a slight acceleration, i.e. the speed keeps increasing slightly as the robot turns to find an appropriate token. The speed for iteration n > 0 is v(n) = (1.05)^n * v(0).
+
+* Finally, the way we detect the end of the process is just by an inactivity time, the variable computed in the begining, `in_time`. Every time the `search_and_grab` function fails to find an appropriate token (returns -1) we add to the time variable `t` the value of the time step `dt`. When `t` reaches the inactivity time `in_time` we consider the process finished (no more tokens to pair). This parameter is computed using the time step `dt` such that there is enough time to perform at least a whole turn given the speed used (also computed using `dt`).
 
 ```python
 # Main Code:
