@@ -143,7 +143,7 @@ grab_index = 0
 rot = 1
 """ int (1, -1): Direction of rotation. 1 for clockwise, -1 for anticlockwise."""
 
-AlternatingRot = (True, False)
+alternatingRot = (True, False)
 """ boolean tuple: Whether to alternate rotation direction after (grabbing, releasing) or not."""
 ```
 * As done in previous exercises, `a_th` and `d_th` are used to guide the robot to the token. In the case of releasing a token we use `pd_th` instead of `d_th` so that there is no colision. 
@@ -302,7 +302,7 @@ def main():
                 grab_state = True
                 arranged[grab_index].append(cd)
                 t = 0
-                rot = -rot if AlternatingRot[0] else rot
+                rot = -rot if alternatingRot[0] else rot
         else:
             cd = search_and_release(arranged, dt, markers[release_index])
             if cd == -1:
@@ -314,7 +314,7 @@ def main():
                 time.sleep(3 * sqdt)
                 grab_state = False
                 arranged[release_index].append(cd)
-                rot = -rot if AlternatingRot[1] else rot
+                rot = -rot if alternatingRot[1] else rot
     stop()
     return in_time
 ```
